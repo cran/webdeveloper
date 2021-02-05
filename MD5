@@ -1,0 +1,15 @@
+af451e4248851f4683311099ea406730 *DESCRIPTION
+0a2b8594f0d0d5abd17be409f7d9268a *NAMESPACE
+d6606bad76f77ab54015bde7f8e9e462 *R/webdeveloper.R
+90d366531212af872af395ea554ec5ab *man/castDateString.Rd
+e0bb373bbab7515e1097c4ebd3e46a26 *man/castNumeric.Rd
+169959bf7efec1fd00474b1801dc7c0a *man/doubleQuoteText.Rd
+9b20436fd8b7b438740f46ce5d2a0c11 *man/endServer.Rd
+768036c1d1f829d180fc00de881f9396 *man/fromInput.Rd
+d8d20929bbd76b2e7e15eedc550fcfa7 *man/jsonStr.Rd
+cf94d6e7871a6d8f0147d0e5bc10cc71 *man/paramList.Rd
+a08bc24d5f602d19f9c1909e70abcace *man/quoteText.Rd
+a618143227e3e212dda75dcee79f82ed *man/sampleStr.Rd
+785542ab80d1746144f3b5e8855e0df7 *man/serveHTTP.Rd
+1c612c8ddcd594690cb7941802b0a727 *man/smart_options.Rd
+f5d0195a96caf5767057122cd161dec3 *man/toInput.Rd
