@@ -9,7 +9,8 @@ serveHTTP(
   port = 5001,
   persistent = FALSE,
   static = list(),
-  dynamic = list()
+  dynamic = list(),
+  indexhtml = FALSE
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ HTTP method (such as "GET" or "POST") and the values being expressions that when
 for status, headers, and body as specified by httpuv::startServer(). Refer to httpuv::startServer() for more details on what can be returned
 as the response.
 ex. list("/" = c("GET" = expression(get_function(req)), "POST" = expresssion(post_function(req))))}
+
+\item{indexhtml}{TRUE/FALSE, passed to httpuv::staticPathOptions, If an index.html file is present, should it be served up when the client requests the static path or any subdirectory?}
 }
 \value{
 A HTTP web server on the specified host and port.
@@ -63,7 +66,8 @@ rook_error_stream = req[["rook.errors"]]$read_lines()
 # Run both functions and go to http://127.0.0.1:5001/ in a web browser
 get_example <- function(req){
 
-html <- html_doc(
+html <- doctype(
+html(
 head(),
 body(
 h1("Hello"),
@@ -77,10 +81,11 @@ li(paste0("req$QUERY_STRING = ", req$QUERY_STRING)),
 li(paste0("req$SERVER_NAME = ", req$SERVER_NAME)),
 li(paste0("req$SERVER_PORT = ", req$SERVER_PORT))
 ),
-p("You can use paramList() to deal with inputs passed through query strings as
+p("You can use parseQueryString to deal with inputs passed through query strings as
 well as passed through the input stream."),
-p("params <- paramList(req[[\"rook.input\"]]$read_lines()) will give you a
-named list of parameters.")
+p("params <- parseQueryString(req[[\"rook.input\"]]$read_lines()) will give you a
+named list of parameters. See also parseHTTP.")
+)
 )
 )
 return(

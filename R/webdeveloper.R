@@ -1,263 +1,335 @@
-
-#' Add single quotes to strings, useful for converting R strings into SQL formatted strings.
+#' Parse the content type header string to return the content type and boundary
 #'
-#' @param x A string.
-#' @param char_only TRUE/FALSE, if TRUE, adds quotes only if is.character(x) is TRUE.
-#' @return A string, with single quotes added to match postgreSQL string formatting.
+#' @param x A string containing the content type header.
+#' @return A named list with "content_type" and "boundary" if boundary is present.
 #' @examples
-#' quoteText("Sample quotes.")
-quoteText <- function(x, char_only = TRUE){
-
-  if(char_only == TRUE){
-    if(is.character(x) == TRUE){
-      return(paste0("'", gsub("\'", "''", x), "'"))
-    }else{
-      return(x)
-    }
-  }else{
-    return(paste0("'", gsub("\'", "''", x), "'"))
-  }
-
-}
-
-#' Add double quotes to strings.
-#'
-#' @param x A string.
-#' @param char_only TRUE/FALSE, if TRUE, adds quotes only if is.character(x) is TRUE.
-#' @return A string, with double quotes added.
-#' @examples
-#' doubleQuoteText("Sample quotes.")
-doubleQuoteText <- function(x, char_only = TRUE){
-
-  if(char_only == TRUE){
-    if(is.character(x) == TRUE){
-      return(paste0('"', x, '"'))
-    }else{
-      return(x)
-    }
-  }else{
-    return(paste0('"', x, '"'))
-  }
-
-}
-
-#' Format data as a JSON object (like this: { “x”: “120” }).
-#'
-#' @param name A string, the name of the JSON entry
-#' @param val A string, the value to associate with the JSON entry.
-#' @return A string, data formatted as a JSON object.
-#' @examples
-#' jsonStr(name = "var1", val = "Blue")
-jsonStr <- function(name, val){
-  paste0("{", doubleQuoteText(name), ":", doubleQuoteText(val), "}")
-}
-
-#' Convert strings to numeric if possible, otherwise remains as is.
-#'
-#' @param x A string.
-#' @return A string, converted to numeric if possible.
-#' @examples
-#' castNumeric("100")
-castNumeric <- function(x){
-  suppressWarnings(
-    if(is.na(as.numeric(x)) == FALSE){
-      x <- as.numeric(x)
-    }
-  )
-  return(x)
-}
-
-#' Format a date string as "%Y-%m-%d" (YYYY-MM-DD), useful for converting dates selected
-#' from a SQL database to a format compatible with a HTML date input value.
-#'
-#' @param x A string.
-#' @return A string, formatted YYYY-MM-DD.
-#' @examples
-#' castDateString(Sys.time())
-castDateString <- function(x){
-
+#' parseContentTypeHeader("application/x-www-form-urlencoded")
+parseContentTypeHeader <- function(x){
+  x <- strsplit(x, "; ", fixed = TRUE)[[1]]
   return(
-    if(nchar(x) > 0){
-      format(x, "%Y-%m-%d")
+    if(length(x) == 1){
+      list(
+        "content_type" = x
+      )
     }else{
-      x
+      list(
+        "content_type" = x[1],
+        "boundary" = strsplit(x[2], "=", fixed = TRUE)[[1]][2]
+      )
     }
   )
 }
 
-#' Replace NA values with "", useful for passing values to HTML tags.
+#' Parse a query string
 #'
-#' @param x A vector of length 1.
-#' @return A string, if x is NA, returns "".
+#' @param x A string containing the query string.
+#' @param split A string, the character to split by.
+#' @param consolidate TRUE/FALSE, if TRUE, consolidates items with the same name.
+#' @return A named list.
 #' @examples
-#' toInput(NA)
-toInput <- function(x){
-
-  if(NA %in% x){
-    x <- ""
-  }
-
-  return(x)
-
+#' parseQueryString("?form_id=example&col_name=Test+String")
+parseQueryString <- function(
+  x,
+  split = "&",
+  consolidate = TRUE
+){
+  x <- base::sub(pattern = "^[?]", replacement = "", x)
+  x <- chartr("+", " ", x)
+  x <- strsplit(x, split, fixed = TRUE)[[1]]
+  args <- lapply(x, function(y) {
+    httpuv::decodeURIComponent(strsplit(y, "=", fixed = TRUE)[[1]])
+  })
+  values <- lapply(args, `[`, 2)
+  names(values) <- vapply(args, `[`, character(1), 1)
+  return(
+    if(consolidate){
+      value_names <- names(values)
+      uvalue_names <- unique(value_names)
+      if(length(uvalue_names) < length(value_names)){
+        values <- lapply(uvalue_names, function(y){
+          return(unlist(values[names(values) %in% y]))
+        })
+        names(values) <- uvalue_names
+      }
+    }else{
+      values
+    }
+  )
 }
 
-#' Prepare values collected from HTML forms to save to a SQL database by calling quoteText. If x is "", returns "NULL".
+#' Helper function for parseMultiPartFormData
 #'
-#' @param x A vector of length 1.
-#' @return A string, if x is "", returns "NULL".
+#' @param x A vector, a chunk of multi-part form data to parse.
+#' @return A named list.
 #' @examples
-#' fromInput("Test")
-#' fromInput("100")
-#' fromInput(100)
-#' fromInput("")
-fromInput <- function(x){
-
-  if("" %in% x){
-    x <- "NULL"
-  }else{
-    x <- quoteText(x)
+#' parseMultiPartFormParams(c("Content-Disposition: form-data; name=\"form_name\"", "", "Example"))
+parseMultiPartFormParams <- function(
+  x
+){
+  meta_chunk <- strsplit(x[1], "; ", fixed = TRUE)[[1]]
+  p_list <- list()
+  if(meta_chunk[1] == "Content-Disposition: form-data"){
+    p_name <- strsplit(meta_chunk[2], "=")[[1]][2]
+    p_name <- gsub('\"', "", p_name, fixed = TRUE)
+    if(grepl("Content-Type", x[2], fixed = TRUE)){
+      filename <- unlist(strsplit(meta_chunk[3], "="))[2]
+      filename <- gsub('\"', "", filename)
+      x_data <- x[4:length(x)]
+      p_list <- list(
+        list(
+          "filename" = filename,
+          "data" = x_data
+        )
+      )
+      names(p_list) <- p_name
+    }else{
+      x_data <- x[3:length(x)]
+      p_list <- list(
+        x_data
+      )
+      names(p_list) <- p_name
+    }
   }
-
-  return(x)
-
+  return(p_list)
 }
 
-#' Generates (pseudo)random strings of the specified char length.
+#' Parse multi-part form data
 #'
-#' @param char A integer, the number of chars to include in the output string.
+#' @param x A vector.
+#' @param boundary A string, the boundary used for the multi-part form data
+#' @return A named list.
+#' @examples
+#' parseMultiPartFormData(
+#' x = c(
+#'   "------WebKitFormBoundaryfBloeH49iOmYtO5A",
+#'   "Content-Disposition: form-data; name=\"form_name\"",
+#'   "",
+#'   "Example",
+#'   "------WebKitFormBoundaryfBloeH49iOmYtO5A",
+#'   "Content-Disposition: form-data; name=\"form_id\"",
+#'   "",
+#'   "test",
+#'   "------WebKitFormBoundaryfBloeH49iOmYtO5A",
+#'   "Content-Disposition: form-data; name=\"desktop_file\"; filename=\"limit_type.csv\"",
+#'   "Content-Type: text/csv",
+#'   "",
+#'   "limit_type",
+#'   "Aggregate",
+#'   "Occurrence",
+#'   "------WebKitFormBoundaryfBloeH49iOmYtO5A--"
+#' ),
+#' boundary = parseContentTypeHeader(
+#' "multipart/form-data; boundary=----WebKitFormBoundaryfBloeH49iOmYtO5A")[['boundary']]
+#' )
+parseMultiPartFormData <- function(
+  x,
+  boundary
+){
+  boundary <- gsub("-", "", boundary)
+  boundaries <- which(grepl(boundary, x, fixed = TRUE))
+  params <- list()
+  for(i in 1:length(boundaries)){
+    if(boundaries[i] == length(x)){
+
+    }else{
+      start <- boundaries[i] + 1
+      end <- if(i == length(boundaries)){length(x)}else{boundaries[i+1] - 1}
+      chunk <- x[start:end]
+      chunk_params <- parseMultiPartFormParams(chunk)
+      params <- c(params, chunk_params)
+    }
+  }
+  return(params)
+}
+
+#' Parse a HTTP request
+#'
+#' @param x The body of the HTTP request
+#' @param content_type_header A string containing the content type header.
+#' @param consolidate TRUE/FALSE, if TRUE, consolidates items with the same name.
+#' @return A named list.
+#' @examples
+#' parseHTTP("?form_id=example&col_name=Test+String", "application/x-www-form-urlencoded")
+parseHTTP <- function(
+  x,
+  content_type_header = NULL,
+  consolidate = TRUE
+){
+  return(
+    if(is.null(content_type_header)){
+      parseQueryString(x, consolidate)
+    }else{
+      c_type <- parseContentTypeHeader(content_type_header)
+      if(c_type[["content_type"]] == "application/x-www-form-urlencoded"){
+        parseQueryString(x, consolidate = consolidate)
+      }else if(c_type[["content_type"]] == "multipart/form-data"){
+        parseMultiPartFormData(x, boundary = c_type[["boundary"]])
+      }
+    }
+  )
+}
+
+#' Add a prefix to an id
+#'
+#' @param id A string to add a prefix to.
+#' @param prefix A string, the prefix to add.
+#' @param sep A string, the separator to use.
 #' @return A string.
 #' @examples
-#' sampleStr(10)
-sampleStr <- function(char){
-
-  x <- c()
-
-  for(i in 1:char){
-    x <- c(x, sample(c(letters, LETTERS, 0:9), 1))
-  }
-
+#' idAddSuffix("example", 1)
+idAddPrefix <- function(prefix, id, sep = "X"){
   return(
-    paste0(x, collapse = "")
+    paste0(prefix, sep, id)
   )
 }
 
-#' Creates HTML option tags for each position of a list of values and labels by calling html5::option(), returning a string of HTML to pass to a select tag through html5::select().
+#' Remove a prefix from an id
 #'
-#' @param x A named list, one name should refer to a vector of values, one name should refer to a vector of labels equal in length to the values.
-#' @param value The name of the position in x to use as the value attribute for each option tag.
-#' @param label The name of the position in x to use as the displayed content for each option tag.
-#' @param selected_value A value in the vector passed as value to mark as the initially selected option in the select tag.
-#' @param add_blank TRUE/FALSE, if TRUE, adds a blank ("") option tag.
+#' @param id A string to remove a prefix from.
+#' @param split A string, the separator to use for splitting the id.
+#' @param position A integer vector, the position of the split string to return.
+#' @return A vector.
+#' @examples
+#' idParsePrefix(idAddPrefix("example", 1))
+idParsePrefix <- function(id, split = "X", position = 2){
+  return(
+    strsplit(id, split = split, fixed = TRUE)[[1]][position]
+  )
+}
+
+#' Add a suffix to an id
+#'
+#' @param id A string to add a suffix to.
+#' @param suffix A string, the suffix to add.
+#' @param sep A string, the separator to use.
+#' @return A string.
+#' @examples
+#' idAddSuffix("example", 1)
+idAddSuffix <- function(id, suffix, sep = "-"){
+  return(
+    paste0(id, sep, suffix)
+  )
+}
+
+#' Remove a suffix from an id
+#'
+#' @param id A string to remove a suffix from.
+#' @param split A string, the separator to use for splitting the id.
+#' @param position A integer vector, the position of the split string to return.
+#' @return A vector.
+#' @examples
+#' idParseSuffix(idAddSuffix("example", 1))
+idParseSuffix <- function(id, split = "-", position = 1){
+  return(
+    strsplit(id, split = split, fixed = TRUE)[[1]][position]
+  )
+}
+
+#' Add a prefix and suffix to an id
+#'
+#' @param prefix A string, the prefix to add.
+#' @param id A string to add a prefix and suffix to.
+#' @param suffix A string, the suffix to add.
+#' @param prefix_sep A string, the prefix separator to use.
+#' This should be different than suffix_sep.
+#' @param suffix_sep A string, the suffix separator to use.
+#' This should be different than prefix_sep.
+#' @return A string.
+#' @examples
+#' idAddAffixes("group1", "example", 1)
+idAddAffixes <- function(prefix, id, suffix, prefix_sep = "X", suffix_sep = "-"){
+  return(
+    paste0(prefix, prefix_sep, id, suffix_sep, suffix)
+  )
+}
+
+#' Remove a prefix and suffix from an id
+#'
+#' @param id A string to remove a prefix and suffix from.
+#' @param split A regular expression to use for splitting the prefix and suffix from the id.
+#' @return A named vector, with prefix, id, and suffix returned in that order.
+#' @examples
+#' idParseAffixes(idAddAffixes("group1", "example", 1))
+idParseAffixes <- function(id, split = "X|-"){
+  x <- strsplit(id, split = split)[[1]]
+  names(x) <- c("prefix", "id", "suffix")
+  return(
+    x
+  )
+}
+
+################################################################################
+
+#' Creates HTML option tags for each position of a list of values and labels by calling HTML5::option(),
+#' returning a string of HTML to pass to a select tag through HTML5::select().
+#'
+#' @param x A vector which will become the value/label for each option. If named, names become values.
+#' @param selected A value in the vector passed to mark as the initially selected option in the select tag.
+#' @param add_blank Boolean, If TRUE, adds a blank option to the top of x.
 #' @return A string, with an option tag each row of x.
 #' @examples
-#' smart_options(
-#' x = list(col1 = c("1", "2", "3"), col2 = c("New York", "Los Angeles", "Chicago")),
-#' value = "col1",
-#' label = "col2",
-#' selected_value = "3",
-#' add_blank = TRUE
+#' create_options(
+#' x = c("New York", "Los Angeles", "Chicago"),
+#' selected = "Chicago"
 #' )
-smart_options <- function(x, value, label, selected_value, add_blank = FALSE){
-
-  values <- x[[value]]
-
-  labels <- x[[label]]
-
-  if(length(values) == length(labels)){
-
-    options <- list()
-
-    lapply(1:length(values), function(i){
-
-      if(values[i] == selected_value){
-        options[[i]] <<- option(value = values[i], selected = TRUE, labels[i])
-      }else{
-        options[[i]] <<- option(value = values[i], labels[i])
-      }
-
-    })
-
-    if(add_blank == TRUE){
-
-      options[[length(values) + 1]] <- option(value = "", "")
-
+create_options <- function(x, selected = c(), add_blank = FALSE){
+  name_vals <- names(x)
+  if(add_blank == TRUE){
+    x <- c("", x)
+    if(length(name_vals) > 0){
+      name_vals <- c("", name_vals)
     }
-
-    options <- paste0(unlist(options), collapse = "")
-
-    return(options)
-
-  }else{
-
-    print("Warning: length of value vector must equal length of label vector.")
-    return()
-
   }
-
+  x <- unname(x)
+  selected <- x %in% selected
+  if(length(x) > 1){
+    return(
+      if(length(name_vals) > 0){
+        option(
+          attr = list(
+            "value" = name_vals,
+            "label" = x,
+            "selected" = selected
+          ),
+          separate = TRUE
+        )
+      }else{
+        option(
+          attr = list(
+            "value" = x,
+            "label" = x,
+            "selected" = selected
+          ),
+          separate = TRUE
+        )
+      }
+    )
+  }else if(length(x) == 1){
+    return(
+      if(length(name_vals) > 0){
+        option(
+          attr = list(
+            "value" = name_vals,
+            "label" = x,
+            "selected" = selected
+          )
+        )
+      }else{
+        option(
+          attr = list(
+            "value" = x,
+            "label" = x,
+            "selected" = selected
+          )
+        )
+      }
+    )
+  }else{
+    return(
+      option(value = "", label = "")
+    )
+  }
 }
-
-#' Parse HTTP parameter strings.
-#'
-#' @param x A parameter string, likely accessed from req[["rook.input"]]$read_lines().
-#' @param split The character to use to split the parameter string into constituent parameters.
-#' @param custom_decode A named list, must consist of list(pattern = c(...), replacement = c(...)) where pattern contains characters to decode that are not included in utils::URLencode
-#' and replacement contains the character to replace the character passed in the same indexed position in pattern.
-#' @return A list, with names being parameter names and values being parameter values.
-#' @examples
-#' paramList("?param1=Test&param2=1234&param3=Example")
-paramList <- function(x, split = "&", custom_decode = list(pattern = c("+"), replacement = c(" "))){
-
-  x <- stringi::stri_replace_first_fixed(x, pattern = "?", replacement = "")
-
-  x <- unlist(stringi::stri_split_fixed(x, split))
-
-  x <- lapply(x, stringi::stri_split_fixed, "=")
-
-  params <- list()
-
-  pattern <- custom_decode[["pattern"]]
-  replacement <- custom_decode[["replacement"]]
-
-  lapply(1:length(x), function(i){
-
-    y <- unlist(x[[i]])
-
-    p_name <- y[1]
-    p_value <- URLdecode(y[2])
-
-    lapply(1:length(pattern), function(x){
-      p_value <<- stringi::stri_replace_all_fixed(p_value, pattern[x], replacement[x])
-    })
-
-    if(length(params[[p_name]]) > 0){
-
-      params[[p_name]] <<- c(params[[p_name]], p_value)
-
-    }else{
-
-      params[[p_name]] <<- p_value
-
-    }
-
-  })
-
-  return(params)
-
-}
-
-# req_list <- list(
-#   request_method = req$REQUEST_METHOD,
-#   script_name = req$SCRIPT_NAME,
-#   path_info = req$PATH_INFO,
-#   query_string = req$QUERY_STRING,
-#   server_name = req$SERVER_NAME,
-#   server_port = req$SERVER_PORT,
-#   headers = req$HEADERS,
-#   rook_input = req[["rook.input"]]$read_lines(),
-#   rook_version = req[["rook.version"]]$read_lines(),
-#   rook_url_scheme = req[["rook.url_scheme"]]$read_lines(),
-#   rook_error_stream = req[["rook.errors"]]$read_lines()
-# )
 
 #' Conveniently create HTTP server using httpuv::startServer() or httpuv::runServer().
 #'
@@ -275,6 +347,7 @@ paramList <- function(x, split = "&", custom_decode = list(pattern = c("+"), rep
 #' for status, headers, and body as specified by httpuv::startServer(). Refer to httpuv::startServer() for more details on what can be returned
 #' as the response.
 #' ex. list("/" = c("GET" = expression(get_function(req)), "POST" = expresssion(post_function(req))))
+#' @param indexhtml TRUE/FALSE, passed to httpuv::staticPathOptions, If an index.html file is present, should it be served up when the client requests the static path or any subdirectory?
 #' @return A HTTP web server on the specified host and port.
 #' @details serveHTTP is a convenient way to start a HTTP server that works for both static and dynamically created pages.
 #' It offers a simplified and organized interface to httpuv::startServer()/httpuv::runServer() that makes serving static and
@@ -300,7 +373,8 @@ paramList <- function(x, split = "&", custom_decode = list(pattern = c("+"), rep
 #' # Run both functions and go to http://127.0.0.1:5001/ in a web browser
 #' get_example <- function(req){
 #'
-#' html <- html_doc(
+#' html <- doctype(
+#' html(
 #' head(),
 #' body(
 #' h1("Hello"),
@@ -314,10 +388,11 @@ paramList <- function(x, split = "&", custom_decode = list(pattern = c("+"), rep
 #' li(paste0("req$SERVER_NAME = ", req$SERVER_NAME)),
 #' li(paste0("req$SERVER_PORT = ", req$SERVER_PORT))
 #' ),
-#' p("You can use paramList() to deal with inputs passed through query strings as
+#' p("You can use parseQueryString to deal with inputs passed through query strings as
 #' well as passed through the input stream."),
-#' p("params <- paramList(req[[\"rook.input\"]]$read_lines()) will give you a
-#' named list of parameters.")
+#' p("params <- parseQueryString(req[[\"rook.input\"]]$read_lines()) will give you a
+#' named list of parameters. See also parseHTTP.")
+#' )
 #' )
 #' )
 #' return(
@@ -345,27 +420,18 @@ serveHTTP <- function(
   port = 5001,
   persistent = FALSE,
   static = list(),
-  dynamic = list()
+  dynamic = list(),
+  indexhtml = FALSE
 ){
-
-  if(length(static) > 0){
-
-    static <- lapply(static, staticPath, indexhtml = FALSE)
-
-  }
-
+  # if(length(static) > 0){
+  #   static <- lapply(static, staticPath, indexhtml = indexhtml)
+  # }
   if(length(dynamic) > 0){
-
     for(i in names(dynamic)){
-
       static[[i]] <- excludeStaticPath()
-
     }
-
   }
-
   valid_dynamic_paths <- names(dynamic)
-
   if(persistent == TRUE){
     return(
       runServer(
@@ -373,19 +439,14 @@ serveHTTP <- function(
         port,
         app = list(
           call = function(req) {
-
             if(req$PATH_INFO %in% valid_dynamic_paths){
-
               x <- eval(dynamic[[req$PATH_INFO]][req$REQUEST_METHOD])
-
               list(
                 status = x[["status"]],
                 headers = x[["headers"]],
                 body = x[["body"]]
               )
-
             }else{
-
               list(
                 status = 404,
                 headers = list(
@@ -393,11 +454,12 @@ serveHTTP <- function(
                 ),
                 body = "404. Page not found."
               )
-
             }
-
           },
-          staticPaths = static
+          staticPaths = static,
+          staticPathOptions = staticPathOptions(
+            indexhtml = indexhtml
+          )
         )
       )
     )
@@ -408,19 +470,14 @@ serveHTTP <- function(
         port,
         app = list(
           call = function(req) {
-
             if(req$PATH_INFO %in% valid_dynamic_paths){
-
               x <- eval(dynamic[[req$PATH_INFO]][req$REQUEST_METHOD])
-
               list(
                 status = x[["status"]],
                 headers = x[["headers"]],
                 body = x[["body"]]
               )
-
             }else{
-
               list(
                 status = 404,
                 headers = list(
@@ -428,16 +485,16 @@ serveHTTP <- function(
                 ),
                 body = "404. Page not found."
               )
-
             }
-
           },
-          staticPaths = static
+          staticPaths = static,
+          staticPathOptions = staticPathOptions(
+            indexhtml = indexhtml
+          )
         )
       )
     )
   }
-
 }
 
 #' Stop HTTP server(s) by calling httpuv::stopServer() or httpuv::stopAllServers().
@@ -448,11 +505,9 @@ serveHTTP <- function(
 #' @examples
 #' endServer(all = TRUE)
 endServer <- function(x = NULL, all = FALSE){
-
   if(all == TRUE){
     return(stopAllServers())
   }else{
     return(stopServer(x))
   }
-
 }

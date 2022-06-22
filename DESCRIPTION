@@ -1,7 +1,7 @@
 Package: webdeveloper
 Type: Package
 Title: Functions for Web Development
-Version: 0.1.0
+Version: 1.0.0
 Author: Timothy Conwell
 Maintainer: Timothy Conwell <timconwell@gmail.com>
 Description: Organizational framework for web development in R including functions to  
@@ -10,12 +10,9 @@ Description: Organizational framework for web development in R including functio
     to web development.
 License: GPL (>= 2)
 Encoding: UTF-8
-LazyData: true
-Depends: httpuv, html5
-Imports: stringi
-Suggests: dbWebForms, pgTools
-RoxygenNote: 7.1.1
+Depends: httpuv, html5 (>= 1.0.0)
+RoxygenNote: 7.2.0
 NeedsCompilation: no
-Packaged: 2021-01-30 20:17:41 UTC; tim
+Packaged: 2022-06-22 19:45:07 UTC; tim
 Repository: CRAN
-Date/Publication: 2021-02-05 09:40:05 UTC
+Date/Publication: 2022-06-22 20:00:02 UTC
