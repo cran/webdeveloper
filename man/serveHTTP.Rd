@@ -10,7 +10,9 @@ serveHTTP(
   persistent = FALSE,
   static = list(),
   dynamic = list(),
-  indexhtml = FALSE
+  lapply_staticPath = TRUE,
+  static_path_options = list(indexhtml = TRUE, fallthrough = FALSE, html_charset =
+    "utf-8", headers = list(), validation = character(0), exclude = FALSE)
 )
 }
 \arguments{
@@ -24,8 +26,8 @@ serveHTTP(
 If TRUE, calls httpuv::runServer(), which does not return to the R session unless an error or
 interruption occurs and is suitable for use with system services to start or stop a server.}
 
-\item{static}{A named list, names should be URL paths, values should be paths to the files to be served statically
-(such as a HTML file saved somewhere).}
+\item{static}{A named list, names should be URL paths, values should be paths to the files to be served statically (such as a HTML file saved somewhere)
+or staticPath objects if lapply_staticPath is FALSE.}
 
 \item{dynamic}{A named list, names should be URL paths, values should be named vectors with vector names equaling a
 HTTP method (such as "GET" or "POST") and the values being expressions that when evaluated return a named list with valid entries
@@ -33,7 +35,9 @@ for status, headers, and body as specified by httpuv::startServer(). Refer to ht
 as the response.
 ex. list("/" = c("GET" = expression(get_function(req)), "POST" = expresssion(post_function(req))))}
 
-\item{indexhtml}{TRUE/FALSE, passed to httpuv::staticPathOptions, If an index.html file is present, should it be served up when the client requests the static path or any subdirectory?}
+\item{lapply_staticPath}{TRUE/FALSE, if TRUE, httpuv::staticPath will be applied to each element of static to create staticPath objects.}
+
+\item{static_path_options}{A named list, passed to httpuv::staticPathOptions.}
 }
 \value{
 A HTTP web server on the specified host and port.

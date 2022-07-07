@@ -1,6 +1,6 @@
-15de3a5bd66f67de038d02b561accaa3 *DESCRIPTION
+92fbb459d535142bcdbf99bb2b81198e *DESCRIPTION
 9ccc5082a3ca4beb4396fd8f602412a6 *NAMESPACE
-80e94a92c5c01a013cf012a64c5125ca *R/webdeveloper.R
+0ec3b599f52a92c66f7106d83eb35823 *R/webdeveloper.R
 7a7358331105dfc0eab38bbddd93a23a *man/create_options.Rd
 9b20436fd8b7b438740f46ce5d2a0c11 *man/endServer.Rd
 18e74eab706d7791ad503c1d41038e5c *man/idAddAffixes.Rd
@@ -14,4 +14,4 @@ bfd7143bd7c13bc6d82f93c0eccacf9a *man/parseContentTypeHeader.Rd
 d0acbc600a1623054b0905cb667605a6 *man/parseMultiPartFormData.Rd
 d35baa56168472956591c254fe5357cb *man/parseMultiPartFormParams.Rd
 674dbaab4c363110ebf1097328620c40 *man/parseQueryString.Rd
-af88a6a0200574c83061d471131080ff *man/serveHTTP.Rd
+9182d4b7096a41c5ace361655404f9a0 *man/serveHTTP.Rd

@@ -340,14 +340,15 @@ create_options <- function(x, selected = c(), add_blank = FALSE){
 #' (and would therefore not work with launching a persistent server through a system service as the R session would continue and likely exit/end).
 #' If TRUE, calls httpuv::runServer(), which does not return to the R session unless an error or
 #' interruption occurs and is suitable for use with system services to start or stop a server.
-#' @param static A named list, names should be URL paths, values should be paths to the files to be served statically
-#' (such as a HTML file saved somewhere).
+#' @param static A named list, names should be URL paths, values should be paths to the files to be served statically (such as a HTML file saved somewhere)
+#' or staticPath objects if lapply_staticPath is FALSE.
 #' @param dynamic A named list, names should be URL paths, values should be named vectors with vector names equaling a
 #' HTTP method (such as "GET" or "POST") and the values being expressions that when evaluated return a named list with valid entries
 #' for status, headers, and body as specified by httpuv::startServer(). Refer to httpuv::startServer() for more details on what can be returned
 #' as the response.
 #' ex. list("/" = c("GET" = expression(get_function(req)), "POST" = expresssion(post_function(req))))
-#' @param indexhtml TRUE/FALSE, passed to httpuv::staticPathOptions, If an index.html file is present, should it be served up when the client requests the static path or any subdirectory?
+#' @param lapply_staticPath TRUE/FALSE, if TRUE, httpuv::staticPath will be applied to each element of static to create staticPath objects.
+#' @param static_path_options A named list, passed to httpuv::staticPathOptions.
 #' @return A HTTP web server on the specified host and port.
 #' @details serveHTTP is a convenient way to start a HTTP server that works for both static and dynamically created pages.
 #' It offers a simplified and organized interface to httpuv::startServer()/httpuv::runServer() that makes serving static and
@@ -421,11 +422,19 @@ serveHTTP <- function(
   persistent = FALSE,
   static = list(),
   dynamic = list(),
-  indexhtml = FALSE
+  lapply_staticPath = TRUE,
+  static_path_options = list(
+    indexhtml = TRUE,
+    fallthrough = FALSE,
+    html_charset = "utf-8",
+    headers = list(),
+    validation = character(0),
+    exclude = FALSE
+  )
 ){
-  # if(length(static) > 0){
-  #   static <- lapply(static, staticPath, indexhtml = indexhtml)
-  # }
+  if(length(static) > 0 & lapply_staticPath){
+    static <- lapply(static, staticPath)
+  }
   if(length(dynamic) > 0){
     for(i in names(dynamic)){
       static[[i]] <- excludeStaticPath()
@@ -457,9 +466,7 @@ serveHTTP <- function(
             }
           },
           staticPaths = static,
-          staticPathOptions = staticPathOptions(
-            indexhtml = indexhtml
-          )
+          staticPathOptions = do.call(staticPathOptions, static_path_options)
         )
       )
     )
@@ -488,9 +495,7 @@ serveHTTP <- function(
             }
           },
           staticPaths = static,
-          staticPathOptions = staticPathOptions(
-            indexhtml = indexhtml
-          )
+          staticPathOptions = do.call(staticPathOptions, static_path_options)
         )
       )
     )
