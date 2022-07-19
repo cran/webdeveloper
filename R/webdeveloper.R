@@ -41,19 +41,18 @@ parseQueryString <- function(
   })
   values <- lapply(args, `[`, 2)
   names(values) <- vapply(args, `[`, character(1), 1)
-  return(
-    if(consolidate){
-      value_names <- names(values)
-      uvalue_names <- unique(value_names)
-      if(length(uvalue_names) < length(value_names)){
-        values <- lapply(uvalue_names, function(y){
-          return(unlist(values[names(values) %in% y]))
-        })
-        names(values) <- uvalue_names
-      }
-    }else{
-      values
+  if(consolidate){
+    value_names <- names(values)
+    uvalue_names <- unique(value_names)
+    if(length(uvalue_names) < length(value_names)){
+      values <- lapply(uvalue_names, function(y){
+        return(unlist(values[names(values) %in% y]))
+      })
+      names(values) <- uvalue_names
     }
+  }
+  return(
+    values
   )
 }
 
