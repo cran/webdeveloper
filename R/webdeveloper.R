@@ -341,21 +341,21 @@ create_options <- function(x, selected = c(), add_blank = FALSE){
 #' interruption occurs and is suitable for use with system services to start or stop a server.
 #' @param static A named list, names should be URL paths, values should be paths to the files to be served statically (such as a HTML file saved somewhere)
 #' or staticPath objects if lapply_staticPath is FALSE.
-#' @param dynamic A named list, names should be URL paths, values should be named vectors with vector names equaling a
+#' @param dynamic A named list, names should be URL paths, values should be named alists (use alist instead of list) with alist names equaling a
 #' HTTP method (such as "GET" or "POST") and the values being expressions that when evaluated return a named list with valid entries
 #' for status, headers, and body as specified by httpuv::startServer(). Refer to httpuv::startServer() for more details on what can be returned
 #' as the response.
-#' ex. list("/" = c("GET" = expression(get_function(req)), "POST" = expresssion(post_function(req))))
+#' ex. list("/" = alist("GET" = get_function(req), "POST" = post_function(req)))
 #' @param lapply_staticPath TRUE/FALSE, if TRUE, httpuv::staticPath will be applied to each element of static to create staticPath objects.
 #' @param static_path_options A named list, passed to httpuv::staticPathOptions.
 #' @return A HTTP web server on the specified host and port.
 #' @details serveHTTP is a convenient way to start a HTTP server that works for both static and dynamically created pages.
 #' It offers a simplified and organized interface to httpuv::startServer()/httpuv::runServer() that makes serving static and
 #' dynamic pages easier. For dynamic pages, the expression evaluated when a browser requests a dynamically served path should
-#' likely be an expression wrapping a function that has "req" as a parameter. Per the Rook specification implemented by httpuv, "req" is
+#' likely be an expression/function that has "req" as a parameter. Per the Rook specification implemented by httpuv, "req" is
 #' the R environment in which browser request information is collected. Therefore, to access HTTP request headers, inputs, etc. in a function
 #' served by a dynamic path, "req" should be a parameter of that function. For the dynamic parameter of serveHTTP,
-#' list("/" = c("GET" = expression(get_homepage(req)))) would be a suitable way to call the function get_homepage(req) when the root path of a
+#' list("/" = alist("GET" = get_homepage(req))) would be a suitable way to call the function get_homepage(req) when the root path of a
 #' website is requested with the GET method. The req environment has the following variables:
 #' request_method = req$REQUEST_METHOD,
 #' script_name = req$SCRIPT_NAME,
@@ -410,8 +410,8 @@ create_options <- function(x, selected = c(), add_blank = FALSE){
 #' persistent = FALSE,
 #' static = list(),
 #' dynamic = list(
-#' "/" = c(
-#' "GET" = expression(get_example(req))
+#' "/" = alist(
+#' "GET" = get_example(req)
 #' )
 #' )
 #' )
@@ -448,7 +448,7 @@ serveHTTP <- function(
         app = list(
           call = function(req) {
             if(req$PATH_INFO %in% valid_dynamic_paths){
-              x <- eval(dynamic[[req$PATH_INFO]][req$REQUEST_METHOD])
+              x <- eval(dynamic[[req$PATH_INFO]][[req$REQUEST_METHOD]])
               list(
                 status = x[["status"]],
                 headers = x[["headers"]],
@@ -477,7 +477,7 @@ serveHTTP <- function(
         app = list(
           call = function(req) {
             if(req$PATH_INFO %in% valid_dynamic_paths){
-              x <- eval(dynamic[[req$PATH_INFO]][req$REQUEST_METHOD])
+              x <- eval(dynamic[[req$PATH_INFO]][[req$REQUEST_METHOD]])
               list(
                 status = x[["status"]],
                 headers = x[["headers"]],
