@@ -8,6 +8,7 @@ serveHTTP(
   host = "127.0.0.1",
   port = 5001,
   persistent = FALSE,
+  async = FALSE,
   static = list(),
   dynamic = list(),
   lapply_staticPath = TRUE,
@@ -25,6 +26,9 @@ serveHTTP(
 (and would therefore not work with launching a persistent server through a system service as the R session would continue and likely exit/end).
 If TRUE, calls httpuv::runServer(), which does not return to the R session unless an error or
 interruption occurs and is suitable for use with system services to start or stop a server.}
+
+\item{async}{TRUE/FALSE, if TRUE, dynamic path requests will be served asynchronously using multicore evaluation, if possible. This is an
+advanced option and might make it more confusing to debug your app.}
 
 \item{static}{A named list, names should be URL paths, values should be paths to the files to be served statically (such as a HTML file saved somewhere)
 or staticPath objects if lapply_staticPath is FALSE.}

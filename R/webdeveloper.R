@@ -339,6 +339,8 @@ create_options <- function(x, selected = c(), add_blank = FALSE){
 #' (and would therefore not work with launching a persistent server through a system service as the R session would continue and likely exit/end).
 #' If TRUE, calls httpuv::runServer(), which does not return to the R session unless an error or
 #' interruption occurs and is suitable for use with system services to start or stop a server.
+#' @param async TRUE/FALSE, if TRUE, dynamic path requests will be served asynchronously using multicore evaluation, if possible. This is an
+#' advanced option and might make it more confusing to debug your app.
 #' @param static A named list, names should be URL paths, values should be paths to the files to be served statically (such as a HTML file saved somewhere)
 #' or staticPath objects if lapply_staticPath is FALSE.
 #' @param dynamic A named list, names should be URL paths, values should be named alists (use alist instead of list) with alist names equaling a
@@ -419,6 +421,7 @@ serveHTTP <- function(
   host = "127.0.0.1",
   port = 5001,
   persistent = FALSE,
+  async = FALSE,
   static = list(),
   dynamic = list(),
   lapply_staticPath = TRUE,
@@ -441,63 +444,115 @@ serveHTTP <- function(
   }
   valid_dynamic_paths <- names(dynamic)
   if(persistent == TRUE){
-    return(
-      runServer(
-        host,
-        port,
-        app = list(
-          call = function(req) {
-            if(req$PATH_INFO %in% valid_dynamic_paths){
-              x <- eval(dynamic[[req$PATH_INFO]][[req$REQUEST_METHOD]])
-              list(
-                status = x[["status"]],
-                headers = x[["headers"]],
-                body = x[["body"]]
-              )
-            }else{
-              list(
-                status = 404,
-                headers = list(
-                  'Content-Type' = 'text/html'
-                ),
-                body = "404. Page not found."
-              )
-            }
-          },
-          staticPaths = static,
-          staticPathOptions = do.call(staticPathOptions, static_path_options)
+    if(async){
+      future::plan(future::multicore)
+      return(
+        runServer(
+          host,
+          port,
+          app = list(
+            call = function(req) {
+              if(req$PATH_INFO %in% valid_dynamic_paths){
+                promises::as.promise(
+                  future::future({
+                    eval(dynamic[[req$PATH_INFO]][[req$REQUEST_METHOD]])
+                  })
+                )
+              }else{
+                list(
+                  status = 404,
+                  headers = list(
+                    'Content-Type' = 'text/html'
+                  ),
+                  body = "404. Page not found."
+                )
+              }
+            },
+            staticPaths = static,
+            staticPathOptions = do.call(staticPathOptions, static_path_options)
+          )
         )
       )
-    )
+    }else{
+      return(
+        runServer(
+          host,
+          port,
+          app = list(
+            call = function(req) {
+              if(req$PATH_INFO %in% valid_dynamic_paths){
+                eval(dynamic[[req$PATH_INFO]][[req$REQUEST_METHOD]])
+              }else{
+                list(
+                  status = 404,
+                  headers = list(
+                    'Content-Type' = 'text/html'
+                  ),
+                  body = "404. Page not found."
+                )
+              }
+            },
+            staticPaths = static,
+            staticPathOptions = do.call(staticPathOptions, static_path_options)
+          )
+        )
+      )
+    }
   }else{
-    return(
-      startServer(
-        host,
-        port,
-        app = list(
-          call = function(req) {
-            if(req$PATH_INFO %in% valid_dynamic_paths){
-              x <- eval(dynamic[[req$PATH_INFO]][[req$REQUEST_METHOD]])
-              list(
-                status = x[["status"]],
-                headers = x[["headers"]],
-                body = x[["body"]]
-              )
-            }else{
-              list(
-                status = 404,
-                headers = list(
-                  'Content-Type' = 'text/html'
-                ),
-                body = "404. Page not found."
-              )
-            }
-          },
-          staticPaths = static,
-          staticPathOptions = do.call(staticPathOptions, static_path_options)
+    if(async){
+      future::plan(future::multicore)
+      return(
+        startServer(
+          host,
+          port,
+          app = list(
+            call = function(req) {
+              if(req$PATH_INFO %in% valid_dynamic_paths){
+                promises::as.promise(
+                  future::future({
+                    eval(dynamic[[req$PATH_INFO]][[req$REQUEST_METHOD]])
+                  })
+                )
+              }else{
+                list(
+                  status = 404,
+                  headers = list(
+                    'Content-Type' = 'text/html'
+                  ),
+                  body = "404. Page not found."
+                )
+              }
+            },
+            staticPaths = static,
+            staticPathOptions = do.call(staticPathOptions, static_path_options)
+          )
         )
       )
-    )
+    }else{
+      return(
+        startServer(
+          host,
+          port,
+          app = list(
+            call = function(req) {
+              if(req$PATH_INFO %in% valid_dynamic_paths){
+                eval(dynamic[[req$PATH_INFO]][[req$REQUEST_METHOD]])
+              }else{
+                list(
+                  status = 404,
+                  headers = list(
+                    'Content-Type' = 'text/html'
+                  ),
+                  body = "404. Page not found."
+                )
+              }
+            },
+            staticPaths = static,
+            staticPathOptions = do.call(staticPathOptions, static_path_options)
+          )
+        )
+      )
+    }
   }
 }
 
