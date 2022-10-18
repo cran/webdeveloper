@@ -1,8 +1,11 @@
-c73757fc7301d53ca4fec2be4d0b1a43 *DESCRIPTION
+e8b9493ae53deb6f28c2c738141ab9ad *DESCRIPTION
 9ccc5082a3ca4beb4396fd8f602412a6 *NAMESPACE
-147fbe78b7c01efa6667b95189f340ce *R/webdeveloper.R
+5e31f805336cdff5849aedf10a6419d1 *R/webdeveloper.R
 7a7358331105dfc0eab38bbddd93a23a *man/create_options.Rd
+8984877f17372a84453be04f8b7c7bec *man/dynamicTemplate.Rd
+4ca31a53c7a4f4936cd2f899a71947f3 *man/dynamicTemplate2.Rd
 9b20436fd8b7b438740f46ce5d2a0c11 *man/endServer.Rd
+08a1df11213f8a0e76c4a362889e0f5c *man/findTemplateVars.Rd
 18e74eab706d7791ad503c1d41038e5c *man/idAddAffixes.Rd
 a9c8bac747c6d2b041d1d464cf5f128d *man/idAddPrefix.Rd
 bd9fcfa330afdce3ab1729920bcba9f4 *man/idAddSuffix.Rd
@@ -15,3 +18,4 @@ d0acbc600a1623054b0905cb667605a6 *man/parseMultiPartFormData.Rd
 d35baa56168472956591c254fe5357cb *man/parseMultiPartFormParams.Rd
 674dbaab4c363110ebf1097328620c40 *man/parseQueryString.Rd
 6fa17ce5008801c55d237121f9d6075b *man/serveHTTP.Rd
+589b7d046c20d4924565f8e38d3f8125 *man/templateVar.Rd

@@ -570,3 +570,73 @@ endServer <- function(x = NULL, all = FALSE){
     return(stopServer(x))
   }
 }
+
+#' Create a string to use as a placeholder variable in a HTML document.
+#'
+#' @param x Name of placeholder.
+#' @return A string.
+#' @examples
+#' templateVar("my_dynamic_var")
+templateVar <- function(x){
+  return(paste0("%%rvar-", x, "%%"))
+}
+
+#' Find the names of any placeholder variables that exist in a HTML document string.
+#'
+#' @param x HTML string to check for placeholder.
+#' @return A vector of the names of template vars found in the HTML string.
+#' @examples
+#' findTemplateVars(x = html(body(templateVar("body_var"))))
+findTemplateVars <- function(x){
+  x <- strsplit(x, "%%")[[1]]
+  vars <- x[grepl("rvar-", x, fixed = TRUE)]
+  vars <- unlist(lapply(vars, function(x){
+    return(
+      strsplit(x, "rvar-", fixed = TRUE)[[1]][2]
+    )
+  }), use.names = FALSE)
+  return(vars)
+}
+
+#' Replace placeholder variables in a HTML document string.
+#'
+#' @param x HTML string with placeholder variables that need to be replaced.
+#' @param replacements A named vector or named list. Names should match a template variable acting as a placeholder in a HTML document string
+#' and values should be the text to replace the placeholders with.
+#' @return A string of HTML with placeholder values replaced.
+#' @examples
+#' dynamicTemplate(
+#' x = html(body(templateVar("body_var"))),
+#' replacements = c("%%rvar-body_var%%" = div(p("body replacement")))
+#' )
+dynamicTemplate <- function(x, replacements = c()){
+  return(
+    if(length(replacements) > 0){
+      stringi::stri_replace_all_fixed(x, pattern = names(replacements), replacement = replacements, vectorize_all = FALSE)
+    }else{
+      x
+    }
+  )
+}
+
+#' Replace placeholder variables in a HTML document string, after reading the file into R.
+#'
+#' @param file Filepath of the HTML file with placeholder variables that need to be replaced.
+#' @param replacements A named vector or named list. Names should match a template variable acting as a placeholder in a HTML document string
+#' and values should be the text to replace the placeholders with.
+#' @return A string of HTML with placeholder values replaced.
+#' @examples
+#' tmp <- tempfile()
+#' writeLines(html(body(templateVar("body_var"))), con = tmp)
+#' dynamicTemplate2(file = tmp, replacements = c("%%rvar-body_var%%" = div(p("body replacement"))))
+dynamicTemplate2 <- function(file, replacements = c()){
+  x <- readr::read_file(file)
+  return(
+    if(length(replacements) > 0){
+      stringi::stri_replace_all_fixed(x, pattern = names(replacements), replacement = replacements, vectorize_all = FALSE)
+    }else{
+      x
+    }
+  )
+}
+
